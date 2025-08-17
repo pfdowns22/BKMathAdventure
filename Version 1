@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brooklyn Math Adventure</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Gochi+Hand&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f9ff; /* sky blue */
+        }
+        .font-gochi {
+            font-family: 'Gochi Hand', cursive;
+        }
+        #game-container, #grade-selection-container, #problem-type-container {
+            position: relative;
+            overflow: hidden; /* Contains the canvas */
+        }
+        #animation-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Allows clicks to go through to buttons */
+            z-index: 10;
+        }
+        /* Pencil Styles */
+        .pencil { width: 60px; height: 200px; position: relative; transform: rotate(-10deg); transition: transform 0.3s ease-in-out; }
+        .pencil:hover { transform: rotate(0deg) scale(1.05); }
+        .pencil-body { width: 100%; height: 150px; background-color: #fef08a; border-top-left-radius: 10px; border-top-right-radius: 10px; border: 3px solid #4b5563; position: relative; }
+        .pencil-ferrule { width: 100%; height: 20px; background-color: #d1d5db; border: 3px solid #4b5563; border-top: none; }
+        .pencil-eraser { width: 100%; height: 30px; background-color: #fca5a5; border-top-left-radius: 10px; border-top-right-radius: 10px; border: 3px solid #4b5563; }
+        .pencil-tip-wood { width: 0; height: 0; border-left: 30px solid transparent; border-right: 30px solid transparent; border-top: 40px solid #fde68a; position: absolute; bottom: -40px; left: 0; }
+        .pencil-tip-lead { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 15px solid #1f2937; position: absolute; bottom: -40px; left: 22px; }
+        /* Face Styles */
+        .pencil-face { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); width: 40px; height: 20px; }
+        .eye { width: 8px; height: 8px; background-color: #1f2937; border-radius: 50%; position: absolute; top: 0; animation: blink 4s infinite; transition: all 0.2s ease-in-out; }
+        .eye.left { left: 5px; }
+        .eye.right { right: 5px; }
+        .mouth { width: 20px; height: 10px; border: 2px solid #1f2937; border-top-color: transparent; border-left-color: transparent; border-right-color: transparent; border-radius: 0 0 20px 20px / 0 0 10px 10px; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); transition: all 0.2s ease-in-out; }
+        .happy .mouth { width: 25px; height: 15px; border-radius: 0 0 25px 25px / 0 0 15px 15px; }
+        .happy .eye { transform: scale(1.1); }
+        .sad .mouth { transform: translateX(-50%) rotate(180deg); top: 5px; width: 15px; height: 8px; border-radius: 0 0 15px 15px / 0 0 8px 8px; }
+        @keyframes blink { 0%, 50%, 100% { transform: scaleY(1); } 52%, 98% { transform: scaleY(0.1); } }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-sky-100 flex items-center justify-center min-h-screen p-4">
+
+    <div id="grade-selection-container" class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8 text-center">
+        <h1 class="text-4xl md:text-5xl font-gochi text-sky-600">Welcome to the Adventure!</h1>
+        <p class="text-gray-600 mt-4 text-xl">Please choose your grade level to start:</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+            <button class="grade-btn" data-grade="0">Kindergarten</button>
+            <button class="grade-btn" data-grade="1">1st Grade</button>
+            <button class="grade-btn" data-grade="2">2nd Grade</button>
+            <button class="grade-btn" data-grade="3">3rd Grade</button>
+            <button class="grade-btn" data-grade="4">4th Grade</button>
+            <button class="grade-btn" data-grade="5">5th Grade</button>
+            <button class="grade-btn" data-grade="6">6th Grade</button>
+        </div>
+    </div>
+
+    <div id="problem-type-container" class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8 text-center hidden">
+        <h1 class="text-4xl md:text-5xl font-gochi text-sky-600">Great!</h1>
+        <p class="text-gray-600 mt-4 text-xl">What kind of problems would you like?</p>
+        <div class="flex flex-col md:flex-row gap-4 mt-8">
+            <button class="grade-btn flex-1" data-type="word_problem">Word Problems Only</button>
+            <button class="grade-btn flex-1" data-type="equation">Equations Only</button>
+            <button class="grade-btn flex-1" data-type="both">A Mix of Both</button>
+        </div>
+    </div>
+
+    <div id="game-container" class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8 text-center hidden">
+        <canvas id="animation-canvas"></canvas>
+        <!-- Modals -->
+        <div id="skip-modal" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 hidden">
+            <div class="bg-white p-8 rounded-2xl shadow-lg text-center mx-4">
+                <p class="text-2xl font-semibold mb-6">Are you sure you want to skip?</p>
+                <div class="flex gap-4"><button id="skip-yes-btn" class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-6 rounded-lg text-xl">Yes, skip</button><button id="skip-no-btn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-lg text-xl">No, go back</button></div>
+            </div>
+        </div>
+        <div id="level-modal" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 hidden">
+            <div class="bg-white p-8 rounded-2xl shadow-lg text-center mx-4">
+                <h2 class="text-2xl font-semibold mb-4">Level Control</h2>
+                <div class="flex items-center justify-center gap-4 mb-6">
+                    <button id="level-down-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold h-12 w-12 rounded-full text-3xl">-</button>
+                    <span id="modal-level-display" class="text-4xl font-bold w-20">1</span>
+                    <button id="level-up-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold h-12 w-12 rounded-full text-3xl">+</button>
+                </div>
+                <button id="level-lock-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-xl mb-4"></button>
+                <button id="level-close-btn" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-lg text-xl">Close</button>
+            </div>
+        </div>
+
+        <header class="mb-6">
+            <h1 class="text-4xl md:text-5xl font-gochi text-sky-600">Brooklyn Math Adventure!</h1>
+            <p class="text-gray-500 mt-2">with Percy the Pencil</p>
+        </header>
+        <main class="flex flex-col md:flex-row items-center justify-around gap-8">
+            <div class="pencil-container">
+                <div class="pencil"><div class="pencil-eraser"></div><div class="pencil-body"><div id="pencil-face" class="pencil-face"><div class="eye left"></div><div class="eye right"></div><div class="mouth"></div></div></div><div class="pencil-ferrule"></div><div class="pencil-tip-wood"></div><div class="pencil-tip-lead"></div></div>
+            </div>
+            <div class="w-full md:w-2/3">
+                <div id="problem-box" class="min-h-[120px] bg-sky-50 rounded-lg p-4 border-2 border-sky-200 flex items-center justify-center"><div id="loader" class="loader hidden"></div><p id="problem-text" class="text-xl text-gray-800"></p></div>
+                <div class="mt-4">
+                    <input type="text" id="answer-input" class="w-full p-3 text-2xl text-center border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition" placeholder="Your answer...">
+                    <div id="numpad" class="grid grid-cols-3 gap-2 mt-3"></div>
+                    <div class="flex gap-2 mt-2">
+                         <button id="submit-button" class="flex-grow bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition-transform transform hover:scale-105 shadow-lg">Check</button>
+                         <button id="hint-button" class="flex-grow bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition-transform transform hover:scale-105 shadow-lg">Hint</button>
+                         <button id="skip-button" class="flex-grow bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition-transform transform hover:scale-105 shadow-lg">Skip</button>
+                    </div>
+                </div>
+                 <div id="hint-box" class="mt-3 text-md text-amber-800 bg-amber-100 border border-amber-200 rounded-lg p-2 min-h-[40px] hidden"></div>
+                <div id="feedback-message" class="mt-4 text-lg font-semibold h-8"></div>
+                <div id="level-control-btn" class="mt-2 text-md text-gray-600 cursor-pointer hover:text-blue-600 transition">Level: <span id="level-display" class="font-bold">1</span> (<span id="progress-display">0/2</span> to level up)</div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const gradeSelectionContainer = document.getElementById('grade-selection-container');
+        const problemTypeContainer = document.getElementById('problem-type-container');
+        const gameContainer = document.getElementById('game-container');
+        const gradeButtons = document.querySelectorAll('.grade-btn[data-grade]');
+        const problemTypeButtons = document.querySelectorAll('.grade-btn[data-type]');
+        const problemText = document.getElementById('problem-text');
+        const answerInput = document.getElementById('answer-input');
+        const submitButton = document.getElementById('submit-button');
+        const hintButton = document.getElementById('hint-button');
+        const skipButton = document.getElementById('skip-button');
+        const hintBox = document.getElementById('hint-box');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const levelDisplay = document.getElementById('level-display');
+        const progressDisplay = document.getElementById('progress-display');
+        const loader = document.getElementById('loader');
+        const pencilFace = document.getElementById('pencil-face');
+        const numpad = document.getElementById('numpad');
+        const canvas = document.getElementById('animation-canvas');
+        const ctx = canvas.getContext('2d');
+        const skipModal = document.getElementById('skip-modal');
+        const skipYesBtn = document.getElementById('skip-yes-btn');
+        const skipNoBtn = document.getElementById('skip-no-btn');
+        const levelModal = document.getElementById('level-modal');
+        const levelControlBtn = document.getElementById('level-control-btn');
+        const levelDownBtn = document.getElementById('level-down-btn');
+        const levelUpBtn = document.getElementById('level-up-btn');
+        const modalLevelDisplay = document.getElementById('modal-level-display');
+        const levelLockBtn = document.getElementById('level-lock-btn');
+        const levelCloseBtn = document.getElementById('level-close-btn');
+
+        // --- Game State ---
+        let currentLevel = 1, selectedGrade = null, selectedProblemType = null, correctAnswer = null, currentHint = null, currentExplanation = null;
+        let isFetching = false, wrongAnswerCount = 0, correctAnswersInARow = 0, isLevelLocked = false;
+        const CORRECT_TO_LEVEL_UP = 2;
+        const encouragement = ["Awesome!", "You got it!", "Superstar!", "Math whiz!", "Great job!", "Exactly right!"];
+        const askedProblems = new Set();
+        const brooklynLocations = ["the playground at Prospect Park", "Jane's Carousel in DUMBO", "the New York Transit Museum", "a Grimaldi's Pizza line", "the Brooklyn Botanic Garden", "a Brooklyn Nets game at Barclays Center", "walking across the Brooklyn Bridge", "the Coney Island boardwalk", "the New York Aquarium", "a shop in Industry City", "Smorgasburg in Williamsburg"];
+
+        // --- Animation State ---
+        let animationFrameId, fireworks = [], raindrops = [];
+
+        function setupCanvas() {
+            const container = gameContainer.getBoundingClientRect();
+            canvas.width = container.width;
+            canvas.height = container.height;
+        }
+
+        // --- Animation Logic ---
+        function triggerFireworks() {
+            fireworks = []; for (let i = 0; i < 5; i++) createFirework(Math.random() * canvas.width, Math.random() * canvas.height * 0.7);
+            animateFireworks();
+            setTimeout(() => { cancelAnimationFrame(animationFrameId); ctx.clearRect(0, 0, canvas.width, canvas.height); }, 4000);
+        }
+        function createFirework(x, y) { for (let i = 0; i < 100; i++) fireworks.push({ x, y, vx: Math.cos((Math.PI * 2 / 100) * i) * (Math.random() * 5), vy: Math.sin((Math.PI * 2 / 100) * i) * (Math.random() * 5), alpha: 1, color: `hsl(${Math.random() * 360}, 100%, 50%)` }); }
+        function animateFireworks() {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            fireworks.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.alpha -= 0.01; if (p.alpha <= 0) fireworks.splice(i, 1); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 3, 3); });
+            ctx.globalAlpha = 1;
+            if (fireworks.length > 0) animationFrameId = requestAnimationFrame(animateFireworks); else ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        function triggerRain() {
+            raindrops = []; for (let i = 0; i < 100; i++) raindrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height - canvas.height, length: Math.random() * 20 + 10, speed: Math.random() * 5 + 2 });
+            animateRain();
+            setTimeout(() => { cancelAnimationFrame(animationFrameId); ctx.clearRect(0, 0, canvas.width, canvas.height); }, 4000);
+        }
+        function animateRain() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 2;
+            raindrops.forEach(drop => { ctx.beginPath(); ctx.moveTo(drop.x, drop.y); ctx.lineTo(drop.x, drop.y + drop.length); ctx.stroke(); drop.y += drop.speed; if (drop.y > canvas.height) { drop.y = -drop.length; drop.x = Math.random() * canvas.width; } });
+            animationFrameId = requestAnimationFrame(animateRain);
+        }
+
+        // --- Game Setup ---
+        function initializeGame(problemType) {
+            selectedProblemType = problemType;
+            problemTypeContainer.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+            setupCanvas();
+            updateProgressDisplay();
+            getNewProblem();
+        }
+        function createNumpad() {
+            ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'].forEach(val => {
+                const btn = document.createElement('button'); btn.textContent = val; btn.className = 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-lg text-xl';
+                btn.addEventListener('click', () => handleNumpadInput(val));
+                numpad.appendChild(btn);
+            });
+        }
+        function handleNumpadInput(value) {
+            if (value === '⌫') answerInput.value = answerInput.value.slice(0, -1);
+            else answerInput.value += value;
+        }
+        
+        // --- Gemini API Interaction ---
+        async function getNewProblem(retryCount = 0) {
+            if (isFetching || retryCount > 3) { if (retryCount > 3) problemText.textContent = "Could not find a new problem."; return; }
+            isFetching = true; wrongAnswerCount = 0;
+            setPencilFace('default'); loader.classList.remove('hidden'); problemText.classList.add('hidden'); feedbackMessage.textContent = ''; answerInput.value = ''; hintBox.classList.add('hidden'); hintBox.textContent = '';
+            [submitButton, hintButton, skipButton, answerInput].forEach(el => { el.disabled = true; el.classList.add('opacity-50', 'cursor-not-allowed'); });
+
+            const prompt = createPrompt(currentLevel, selectedGrade);
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
+            
+            try {
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0) {
+                    const content = result.candidates[0].content.parts[0].text;
+                    const parsedContent = JSON.parse(content);
+                    if (askedProblems.has(parsedContent.problem)) { getNewProblem(retryCount + 1); return; }
+                    askedProblems.add(parsedContent.problem);
+                    problemText.textContent = parsedContent.problem; correctAnswer = parsedContent.answer; currentHint = parsedContent.hint; currentExplanation = parsedContent.explanation;
+                } else { throw new Error("Invalid response structure from API."); }
+            } catch (error) {
+                console.error("Error fetching problem:", error); problemText.textContent = "Oops! Percy is thinking extra hard. Please refresh."; currentHint = "Try refreshing the page.";
+            } finally {
+                loader.classList.add('hidden'); problemText.classList.remove('hidden'); isFetching = false;
+                [submitButton, hintButton, skipButton, answerInput].forEach(el => { el.disabled = false; el.classList.remove('opacity-50', 'cursor-not-allowed'); });
+                answerInput.focus();
+            }
+        }
+        
+        function createPrompt(level, grade) {
+            let topic = "";
+            const difficulty = level < 5 ? 'easy' : level < 10 ? 'medium' : 'hard';
+            const place = brooklynLocations[Math.floor(Math.random() * brooklynLocations.length)];
+            switch (grade) {
+                case 0: topic = `counting objects or very simple addition/subtraction within 10. Difficulty: ${difficulty}.`; break;
+                case 1: topic = `addition and subtraction within 20, or comparing numbers. Difficulty: ${difficulty}.`; break;
+                case 2: topic = `addition/subtraction within 100, simple money problems with cents, or telling time. Difficulty: ${difficulty}.`; break;
+                case 3: topic = `basic multiplication and division, or simple fractions (like halves, thirds). Difficulty: ${difficulty}.`; break;
+                case 4: topic = `multi-digit multiplication, division with remainders, or equivalent fractions. Difficulty: ${difficulty}.`; break;
+                case 5: topic = `operations with fractions or decimals, or calculating volume. Difficulty: ${difficulty}.`; break;
+                case 6: topic = `ratios, percentages, or simple algebraic expressions (like 'x + 5 = 12'). Difficulty: ${difficulty}.`; break;
+            }
+            let problemType;
+            switch(selectedProblemType) {
+                case 'word_problem': problemType = 'word_problem'; break;
+                case 'equation': problemType = 'equation'; break;
+                case 'both': problemType = Math.random() < 0.25 ? 'word_problem' : 'equation'; break;
+            }
+            const basePrompt = `Respond with a JSON object containing four keys: "problem", "answer" (numerical), "hint" (a simple clue), and "explanation" (a simple, step-by-step explanation for the answer).`;
+            if (problemType === 'equation') return `Create a simple math equation for a ${grade}th grader involving ${topic}. Do not make it a word problem. ${basePrompt}`;
+            else return `Create a math word problem for a ${grade}th grader in Brooklyn involving ${topic} themed around ${place}. ${basePrompt}`;
+        }
+
+        // --- Game Logic ---
+        function updateProgressDisplay() {
+            levelDisplay.textContent = currentLevel;
+            modalLevelDisplay.textContent = currentLevel;
+            if (isLevelLocked) {
+                progressDisplay.textContent = "(Level Locked)";
+                levelLockBtn.textContent = "Resume Auto-Leveling";
+                levelLockBtn.classList.replace('bg-blue-500', 'bg-purple-500');
+                levelLockBtn.classList.replace('hover:bg-blue-600', 'hover:bg-purple-600');
+            } else {
+                progressDisplay.textContent = `${correctAnswersInARow}/${CORRECT_TO_LEVEL_UP} to level up`;
+                levelLockBtn.textContent = "Stay on this Level";
+                levelLockBtn.classList.replace('bg-purple-500', 'bg-blue-500');
+                levelLockBtn.classList.replace('hover:bg-purple-600', 'hover:bg-blue-600');
+            }
+        }
+        function setPencilFace(mood) {
+            pencilFace.className = 'pencil-face';
+            if (mood !== 'default') pencilFace.classList.add(mood);
+        }
+        function showHint(isAuto = false) {
+            if (currentHint) {
+                hintBox.textContent = `Hint: ${currentHint}`;
+                hintBox.classList.remove('hidden');
+                hintBox.className = 'mt-3 text-md text-amber-800 bg-amber-100 border border-amber-200 rounded-lg p-2 min-h-[40px]';
+                if (!isAuto) { hintButton.disabled = true; hintButton.classList.add('opacity-50', 'cursor-not-allowed'); }
+            }
+        }
+        function handleSubmit() {
+            if (isFetching) return;
+            const userAnswer = parseFloat(answerInput.value);
+            if (isNaN(userAnswer)) { feedbackMessage.textContent = "Please enter a number!"; feedbackMessage.className = "mt-4 text-lg font-semibold h-8 text-yellow-500"; return; }
+            if (userAnswer === correctAnswer) {
+                if (!isLevelLocked) correctAnswersInARow++;
+                const randomPraise = encouragement[Math.floor(Math.random() * encouragement.length)];
+                feedbackMessage.textContent = `${randomPraise} 🎉`;
+                feedbackMessage.className = "mt-4 text-lg font-semibold h-8 text-green-500";
+                setPencilFace('happy');
+                triggerFireworks();
+                if (!isLevelLocked && correctAnswersInARow >= CORRECT_TO_LEVEL_UP) { currentLevel++; correctAnswersInARow = 0; feedbackMessage.textContent = "Level Up! ✨"; }
+                updateProgressDisplay();
+                getNewProblem();
+            } else {
+                wrongAnswerCount++; correctAnswersInARow = 0;
+                if (currentLevel > 1 && !isLevelLocked) currentLevel--;
+                updateProgressDisplay(); setPencilFace('sad'); triggerRain();
+                answerInput.classList.add('animate-shake');
+                setTimeout(() => answerInput.classList.remove('animate-shake'), 500);
+                if (wrongAnswerCount === 1) {
+                    feedbackMessage.textContent = "Not quite. Here's a hint!";
+                    feedbackMessage.className = "mt-4 text-lg font-semibold h-8 text-red-500";
+                    showHint(true);
+                } else {
+                    feedbackMessage.textContent = `The correct answer was ${correctAnswer}.`;
+                    feedbackMessage.className = "mt-4 text-lg font-semibold h-8 text-blue-500";
+                    hintBox.textContent = `Explanation: ${currentExplanation}`;
+                    hintBox.classList.remove('hidden');
+                    hintBox.className = 'mt-3 text-md text-blue-800 bg-blue-100 border border-blue-200 rounded-lg p-2 min-h-[40px]';
+                    [submitButton, hintButton, answerInput, skipButton].forEach(el => { el.disabled = true; el.classList.add('opacity-50', 'cursor-not-allowed'); });
+                    setTimeout(getNewProblem, 6000);
+                }
+            }
+        }
+        
+        // --- Initial Setup & Event Listeners ---
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } } .animate-shake { animation: shake 0.5s ease-in-out; } .grade-btn { background-color: #38bdf8; color: white; font-weight: 600; padding: 1rem; border-radius: 0.75rem; transition: all 0.2s ease-in-out; } .grade-btn:hover { background-color: #0ea5e9; transform: scale(1.05); }`;
+        document.head.appendChild(style);
+        
+        gradeButtons.forEach(button => button.addEventListener('click', () => { selectedGrade = parseInt(button.dataset.grade, 10); gradeSelectionContainer.classList.add('hidden'); problemTypeContainer.classList.remove('hidden'); }));
+        problemTypeButtons.forEach(button => button.addEventListener('click', () => initializeGame(button.dataset.type)));
+        submitButton.addEventListener('click', handleSubmit);
+        hintButton.addEventListener('click', () => showHint(false));
+        skipButton.addEventListener('click', () => skipModal.classList.remove('hidden'));
+        skipYesBtn.addEventListener('click', () => { skipModal.classList.add('hidden'); correctAnswersInARow = 0; updateProgressDisplay(); getNewProblem(); });
+        skipNoBtn.addEventListener('click', () => skipModal.classList.add('hidden'));
+        levelControlBtn.addEventListener('click', () => { modalLevelDisplay.textContent = currentLevel; levelModal.classList.remove('hidden'); });
+        levelCloseBtn.addEventListener('click', () => levelModal.classList.add('hidden'));
+        levelDownBtn.addEventListener('click', () => { if (currentLevel > 1) { currentLevel--; updateProgressDisplay(); getNewProblem(); } });
+        levelUpBtn.addEventListener('click', () => { currentLevel++; updateProgressDisplay(); getNewProblem(); });
+        levelLockBtn.addEventListener('click', () => { isLevelLocked = !isLevelLocked; updateProgressDisplay(); });
+        answerInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') handleSubmit(); });
+        window.addEventListener('resize', setupCanvas);
+        createNumpad();
+    </script>
+</body>
+</html>
