@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Borough Math Adventure</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Gochi+Hand&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f9ff;
+        }
+        .font-gochi { font-family: 'Gochi Hand', cursive; }
+        .main-container {
+            position: relative;
+            overflow: hidden;
+            background-size: cover;
+            background-position: center;
+            transition: background-image 0.5s ease-in-out;
+        }
+        #animation-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .progress-bar-container { width: 100%; background-color: #e5e7eb; border-radius: 9999px; overflow: hidden; }
+        .progress-bar { height: 100%; background-color: #34d399; border-radius: 9999px; transition: width 0.5s ease-in-out; }
+        /* Pencil Styles & Animations */
+        .pencil { width: 60px; height: 200px; position: relative; transition: transform 0.3s ease-in-out; transform: rotate(-10deg); }
+        .pencil-body { width: 100%; height: 150px; background-color: #fef08a; border-top-left-radius: 10px; border-top-right-radius: 10px; border: 3px solid #4b5563; position: relative; }
+        .pencil-ferrule { width: 100%; height: 20px; background-color: #d1d5db; border: 3px solid #4b5563; border-top: none; }
+        .pencil-eraser { width: 100%; height: 30px; background-color: #fca5a5; border-top-left-radius: 10px; border-top-right-radius: 10px; border: 3px solid #4b5563; }
+        .pencil-tip-wood { width: 0; height: 0; border-left: 30px solid transparent; border-right: 30px solid transparent; border-top: 40px solid #fde68a; position: absolute; bottom: -40px; left: 0; }
+        .pencil-tip-lead { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 15px solid #1f2937; position: absolute; bottom: -40px; left: 22px; }
+        .thinking { animation: thinking-sway 1.5s ease-in-out infinite; }
+        @keyframes thinking-sway { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(5deg); } }
+        .cheering { animation: cheer-dance 0.8s ease-in-out; }
+        @keyframes cheer-dance { 0%, 100% { transform: translateY(0) rotate(-10deg); } 25% { transform: translateY(-20px) rotate(15deg) scale(1.05); } 50% { transform: translateY(0) rotate(-15deg); } 75% { transform: translateY(-15px) rotate(10deg); } }
+        .concerned { animation: concerned-shake 0.5s ease-in-out; }
+        @keyframes concerned-shake { 0%, 100% { transform: translateX(0) rotate(-10deg); } 25% { transform: translateX(-5px) rotate(-15deg); } 75% { transform: translateX(5px) rotate(-5deg); } }
+        .intro-wave { animation: intro-wave 2s ease-in-out; }
+        @keyframes intro-wave { 0%, 100% { transform: rotate(-10deg); } 20%, 60% { transform: rotate(20deg); } 40%, 80% { transform: rotate(-15deg); } }
+        /* Face Styles */
+        .pencil-face { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); width: 40px; height: 20px; }
+        .eye { width: 8px; height: 8px; background-color: #1f2937; border-radius: 50%; position: absolute; top: 0; animation: blink 4s infinite; transition: all 0.2s ease-in-out; }
+        .eye.left { left: 5px; } .eye.right { right: 5px; }
+        .mouth { width: 20px; height: 10px; border: 2px solid #1f2937; border-top-color: transparent; border-left-color: transparent; border-right-color: transparent; border-radius: 0 0 20px 20px / 0 0 10px 10px; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); transition: all 0.2s ease-in-out; }
+        .happy .mouth { width: 25px; height: 15px; border-radius: 0 0 25px 25px / 0 0 15px 15px; }
+        .happy .eye { transform: scale(1.1); }
+        .sad .mouth { transform: translateX(-50%) rotate(180deg); top: 5px; width: 15px; height: 8px; border-radius: 0 0 15px 15px / 0 0 8px 8px; }
+        .sad .eye { height: 6px; top: 1px; }
+        @keyframes blink { 0%, 50%, 100% { transform: scaleY(1); } 52%, 98% { transform: scaleY(0.1); } }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } }
+        .animate-shake { animation: shake 0.5s ease-in-out; }
+        .grade-btn { background-color: #38bdf8; color: white; font-weight: 600; padding: 1rem; border-radius: 0.75rem; transition: all 0.2s ease-in-out; border: none; cursor: pointer; }
+        .grade-btn:hover { background-color: #0ea5e9; transform: scale(1.05); }
+        .grade-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body class="bg-sky-100 flex items-center justify-center min-h-screen p-4">
+
+    <div id="intro-container" class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8 text-center hidden">
+        <h1 class="text-4xl md:text-5xl font-gochi text-sky-600">Hi there! I'm Percy!</h1>
+        <div class="flex justify-center my-8">
+             <div id="intro-pencil" class="pencil intro-wave"><div class="pencil-eraser"></div><div class="pencil-body"><div class="pencil-face happy"><div class="eye left"></div><div class="eye right"></div><div class="mouth"></div></div></div><div class="pencil-ferrule"></div><div class="pencil-tip-wood"></div><div class="pencil-tip-lead"></div></div>
+        </div>
+        <p class="text-gray-600 mt-4 text-2xl">Let's go on a math adventure!</p>
+    </div>
+
+    <div id="main-menu-container" class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8 text-center hidden">
+        <h1 class="text-4xl md:text-5xl font-gochi text-sky-600">Let's Get Started!</h1>
+        <div class="mt-8 space-y-6">
+            <button id="start-new-game-btn" class="w-full grade-btn text-2xl">Start New Adventure</button>
+            <button id="continue-game-btn" class="w-full grade-btn text-2xl hidden">Continue Adventure</button>
+        </div>
+    </div>
+
+    <div id="grade-selection-container" class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8 text-center hidden">
+        <h1 class="text-4xl md:text-5xl font-gochi text-sky-600">Choose Your Grade</h1>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+            <button class="grade-btn" data-grade="0">Kindergarten</button>
+            <button class="grade-btn" data-grade="1">1st Grade</button>
+            <button class="grade-btn" data-grade="2">2nd Grade</button>
+            <button class="grade-btn" data-grade="3">3rd Grade</button>
+            <button class="grade-btn" data-grade="4">4th Grade</button>
+            <button class="grade-btn" data-grade="5">5th Grade</button>
+            <button class="grade-btn" data-grade="6">6th Grade</button>
+        </div>
+    </div>
+
+    <div id="skill-selection-container" class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8 text-center hidden">
+        <h1 class="text-4xl md:text-5xl font-gochi text-sky-600">Choose Your Skills</h1>
+        <div id="skill-list" class="grid grid-cols-2 gap-4 mt-8"></div>
+        <button id="start-skill-game-btn" class="w-full grade-btn mt-6">Let's Go!</button>
+    </div>
+
+    <div id="theme-selection-container" class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8 text-center hidden">
+        <h1 class="text-4xl md:text-5xl font-gochi text-sky-600">Choose Your Adventure!</h1>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+            <button class="grade-btn" data-theme="brooklyn">Brooklyn</button>
+            <button class="grade-btn" data-theme="manhattan">Manhattan</button>
+            <button class="grade-btn" data-theme="queens">Queens</button>
+        </div>
+    </div>
+
+    <div id="problem-type-container" class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8 text-center hidden">
+        <h1 class="text-4xl md:text-5xl font-gochi text-sky-600">Choose Problem Type</h1>
+        <div class="flex flex-col md:flex-row gap-4 mt-8">
+            <button class="grade-btn flex-1" data-type="word_problem">Word Problems Only</button>
+            <button class="grade-btn flex-1" data-type="equation">Equations Only</button>
+            <button class="grade-btn flex-1" data-type="both">A Mix of Both</button>
+        </div>
+    </div>
+
+    <div id="game-container" class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8 text-center hidden main-container">
+        <canvas id="animation-canvas"></canvas>
+        <!-- Modals -->
+        <div id="skip-modal" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 hidden">
+            <div class="bg-white p-8 rounded-2xl shadow-lg text-center mx-4">
+                <p class="text-2xl font-semibold mb-6">Are you sure you want to skip?</p>
+                <div class="flex gap-4"><button id="skip-yes-btn" class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-6 rounded-lg text-xl">Yes</button><button id="skip-no-btn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-lg text-xl">No</button></div>
+            </div>
+        </div>
+        <div id="level-modal" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 hidden">
+            <div class="bg-white p-8 rounded-2xl shadow-lg text-center mx-4">
+                <h2 class="text-2xl font-semibold mb-4">Level Control</h2>
+                <div class="flex items-center justify-center gap-4 mb-6">
+                    <button id="level-down-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold h-12 w-12 rounded-full text-3xl">-</button>
+                    <span id="modal-level-display" class="text-4xl font-bold w-20">1</span>
+                    <button id="level-up-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold h-12 w-12 rounded-full text-3xl">+</button>
+                </div>
+                <div id="level-change-confirm" class="hidden my-4"><p class="text-lg">Change level? This will start a new problem.</p><div class="flex gap-2 mt-2"><button id="level-confirm-yes" class="flex-1 bg-green-500 text-white p-2 rounded-lg">Yes</button><button id="level-confirm-no" class="flex-1 bg-red-500 text-white p-2 rounded-lg">No</button></div></div>
+                <button id="level-lock-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-xl mb-4"></button>
+                <button id="level-close-btn" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-lg text-xl">Close</button>
+            </div>
+        </div>
+        <div id="review-modal" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 hidden">
+            <div class="bg-white p-8 rounded-2xl shadow-lg text-left mx-4 max-h-[90vh] overflow-y-auto">
+                <h2 class="text-2xl font-semibold mb-4 text-center">Review Problems</h2>
+                <div id="review-list" class="space-y-4"></div>
+                <button id="review-close-btn" class="w-full mt-6 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-lg text-xl">Close</button>
+            </div>
+        </div>
+
+        <header class="mb-6 flex justify-between items-center">
+            <h1 class="text-3xl md:text-4xl font-gochi text-sky-600">Math Adventure!</h1>
+            <div class="flex gap-2">
+                <button id="review-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg">Review</button>
+                <button id="main-menu-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Menu</button>
+            </div>
+        </header>
+        <main class="flex flex-col md:flex-row items-center justify-around gap-8">
+            <div class="pencil-container">
+                <div id="pencil" class="pencil"><div class="pencil-eraser"></div><div class="pencil-body"><div id="pencil-face" class="pencil-face"><div class="eye left"></div><div class="eye right"></div><div class="mouth"></div></div></div><div class="pencil-ferrule"></div><div class="pencil-tip-wood"></div><div class="pencil-tip-lead"></div></div>
+            </div>
+            <div class="w-full md:w-2/3">
+                <div class="flex items-center gap-2">
+                    <div class="progress-bar-container h-4 flex-grow"><div id="progress-bar" class="progress-bar"></div></div>
+                    <div id="streak-display" class="font-bold text-orange-500 text-lg"></div>
+                </div>
+                <div id="problem-box" class="min-h-[120px] bg-sky-50 rounded-lg p-4 border-2 border-sky-200 flex items-center justify-center mt-2"><div id="loader" class="loader hidden"></div><p id="problem-text" class="text-xl text-gray-800"></p></div>
+                <div class="mt-4">
+                    <input type="text" id="answer-input" class="w-full p-3 text-2xl text-center border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition" placeholder="Your answer...">
+                    <div id="numpad" class="grid grid-cols-3 gap-2 mt-3"></div>
+                    <div class="flex gap-2 mt-2">
+                         <button id="submit-button" class="flex-grow bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-xl">Check</button>
+                         <button id="hint-button" class="flex-grow bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-lg text-xl">Hint</button>
+                         <button id="skip-button" class="flex-grow bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-lg text-xl">Skip</button>
+                    </div>
+                </div>
+                 <div id="hint-box" class="mt-3 text-md text-amber-800 bg-amber-100 border border-amber-200 rounded-lg p-2 min-h-[40px] hidden"></div>
+                <div id="feedback-message" class="mt-4 text-lg font-semibold h-8"></div>
+                <div id="level-control-btn" class="mt-2 text-md text-gray-600 cursor-pointer hover:text-blue-600 transition">Level: <span id="level-display" class="font-bold">1</span></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const allContainers = document.querySelectorAll('.w-full.max-w-2xl');
+        const introContainer = document.getElementById('intro-container');
+        const mainMenuContainer = document.getElementById('main-menu-container');
+        const startNewGameBtn = document.getElementById('start-new-game-btn');
+        const continueGameBtn = document.getElementById('continue-game-btn');
+        const gradeSelectionContainer = document.getElementById('grade-selection-container');
+        const skillSelectionContainer = document.getElementById('skill-selection-container');
+        const skillList = document.getElementById('skill-list');
+        const startSkillGameBtn = document.getElementById('start-skill-game-btn');
+        const themeSelectionContainer = document.getElementById('theme-selection-container');
+        const problemTypeContainer = document.getElementById('problem-type-container');
+        const gameContainer = document.getElementById('game-container');
+        const gradeButtons = document.querySelectorAll('.grade-btn[data-grade]');
+        const themeButtons = document.querySelectorAll('.grade-btn[data-theme]');
+        const problemTypeButtons = document.querySelectorAll('.grade-btn[data-type]');
+        const problemText = document.getElementById('problem-text');
+        const answerInput = document.getElementById('answer-input');
+        const submitButton = document.getElementById('submit-button');
+        const hintButton = document.getElementById('hint-button');
+        const skipButton = document.getElementById('skip-button');
+        const hintBox = document.getElementById('hint-box');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const levelDisplay = document.getElementById('level-display');
+        const progressBar = document.getElementById('progress-bar');
+        const streakDisplay = document.getElementById('streak-display');
+        const loader = document.getElementById('loader');
+        const pencil = document.getElementById('pencil');
+        const pencilFace = document.getElementById('pencil-face');
+        const numpad = document.getElementById('numpad');
+        const canvas = document.getElementById('animation-canvas');
+        const ctx = canvas.getContext('2d');
+        const skipModal = document.getElementById('skip-modal');
+        const skipYesBtn = document.getElementById('skip-yes-btn');
+        const skipNoBtn = document.getElementById('skip-no-btn');
+        const levelModal = document.getElementById('level-modal');
+        const levelControlBtn = document.getElementById('level-control-btn');
+        const levelDownBtn = document.getElementById('level-down-btn');
+        const levelUpBtn = document.getElementById('level-up-btn');
+        const modalLevelDisplay = document.getElementById('modal-level-display');
+        const levelLockBtn = document.getElementById('level-lock-btn');
+        const levelCloseBtn = document.getElementById('level-close-btn');
+        const levelChangeConfirm = document.getElementById('level-change-confirm');
+        const levelConfirmYes = document.getElementById('level-confirm-yes');
+        const levelConfirmNo = document.getElementById('level-confirm-no');
+        const reviewModal = document.getElementById('review-modal');
+        const reviewBtn = document.getElementById('review-btn');
+        const reviewCloseBtn = document.getElementById('review-close-btn');
+        const reviewList = document.getElementById('review-list');
+        const mainMenuBtn = document.getElementById('main-menu-btn');
+
+        // --- Game State ---
+        let gameState = {};
+        const CORRECT_TO_LEVEL_UP = 3;
+        const encouragement = ["Awesome!", "You got it!", "Superstar!", "Math whiz!", "Great job!", "Exactly right!"];
+        let askedProblems = new Set();
+        const themes = {
+            brooklyn: { name: "Brooklyn", locations: ["Prospect Park", "Jane's Carousel", "the Brooklyn Bridge", "Coney Island", "the New York Aquarium"], bg: "https://images.unsplash.com/photo-1597219181221-0852a4a7a0a4?q=80&w=2070&auto=format&fit=crop" },
+            manhattan: { name: "Manhattan", locations: ["Times Square", "Central Park", "the Empire State Building", "the Statue of Liberty", "Grand Central Station"], bg: "https://images.unsplash.com/photo-1542331592-54d6d859336f?q=80&w=2070&auto=format&fit=crop" },
+            queens: { name: "Queens", locations: ["Flushing Meadows Corona Park", "the Unisphere", "Citi Field", "the Museum of the Moving Image", "Rockaway Beach"], bg: "https://images.unsplash.com/photo-1596206262210-3c116c2b5133?q=80&w=1935&auto=format&fit=crop" }
+        };
+        const skillsByGrade = {
+            0: ["Counting", "Simple Addition", "Simple Subtraction"], 1: ["Addition within 20", "Subtraction within 20", "Comparing Numbers"],
+            2: ["Addition within 100", "Subtraction within 100", "Money (Cents)", "Telling Time"], 3: ["Multiplication", "Division", "Fractions"],
+            4: ["Multi-Digit Multiplication", "Division with Remainders", "Equivalent Fractions"], 5: ["Operations with Fractions", "Decimals", "Volume"],
+            6: ["Ratios", "Percentages", "Simple Algebra"]
+        };
+        let tempLevelChange = 0;
+
+        // --- Animation State ---
+        let animationFrameId, fireworks = [], raindrops = [];
+
+        // --- Core Functions ---
+        function showScreen(screen) {
+            allContainers.forEach(c => c.classList.add('hidden'));
+            screen.classList.remove('hidden');
+        }
+
+        function saveState() {
+            gameState.askedProblems = Array.from(askedProblems);
+            localStorage.setItem('mathAdventureState', JSON.stringify(gameState));
+        }
+
+        function loadState() {
+            const savedState = localStorage.getItem('mathAdventureState');
+            if (savedState) {
+                gameState = JSON.parse(savedState);
+                askedProblems = new Set(gameState.askedProblems || []);
+                return true;
+            }
+            resetState();
+            return false;
+        }
+        
+        function resetState() {
+            gameState = {
+                currentLevel: 1, selectedGrade: null, selectedSkills: [], selectedTheme: 'brooklyn', selectedProblemType: null,
+                correctAnswersInARow: 0, streak: 0, isLevelLocked: false, wrongProblems: [], isFetching: false, wrongAnswerCount: 0, currentProblem: {}, askedProblems: []
+            };
+            askedProblems.clear();
+        }
+
+        // --- Animation Logic ---
+        function setupCanvas() { const container = gameContainer.getBoundingClientRect(); canvas.width = container.width; canvas.height = container.height; }
+        function triggerFireworks() { fireworks = []; for (let i = 0; i < 5; i++) createFirework(Math.random() * canvas.width, Math.random() * canvas.height * 0.7); animateFireworks(); setTimeout(() => { cancelAnimationFrame(animationFrameId); ctx.clearRect(0, 0, canvas.width, canvas.height); }, 4000); }
+        function createFirework(x, y) { for (let i = 0; i < 100; i++) fireworks.push({ x, y, vx: Math.cos((Math.PI * 2 / 100) * i) * (Math.random() * 5), vy: Math.sin((Math.PI * 2 / 100) * i) * (Math.random() * 5), alpha: 1, color: `hsl(${Math.random() * 360}, 100%, 50%)` }); }
+        function animateFireworks() { ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; ctx.fillRect(0, 0, canvas.width, canvas.height); fireworks.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.alpha -= 0.01; if (p.alpha <= 0) fireworks.splice(i, 1); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 3, 3); }); ctx.globalAlpha = 1; if (fireworks.length > 0) animationFrameId = requestAnimationFrame(animateFireworks); else ctx.clearRect(0, 0, canvas.width, canvas.height); }
+        function triggerRain() { raindrops = []; for (let i = 0; i < 100; i++) raindrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height - canvas.height, length: Math.random() * 20 + 10, speed: Math.random() * 5 + 2 }); animateRain(); setTimeout(() => { cancelAnimationFrame(animationFrameId); ctx.clearRect(0, 0, canvas.width, canvas.height); }, 4000); }
+        function animateRain() { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 2; raindrops.forEach(drop => { ctx.beginPath(); ctx.moveTo(drop.x, drop.y); ctx.lineTo(drop.x, drop.y + drop.length); ctx.stroke(); drop.y += drop.speed; if (drop.y > canvas.height) { drop.y = -drop.length; drop.x = Math.random() * canvas.width; } }); animationFrameId = requestAnimationFrame(animateRain); }
+
+        // --- Game Setup ---
+        function populateSkills() {
+            skillList.innerHTML = '';
+            const skills = skillsByGrade[gameState.selectedGrade];
+            skills.forEach(skill => {
+                skillList.innerHTML += `<button class="grade-btn skill-btn" data-skill="${skill}">${skill}</button>`;
+            });
+            skillList.innerHTML += `<button class="grade-btn skill-btn col-span-2 !bg-green-500" data-skill="All">All Skills</button>`;
+            document.querySelectorAll('.skill-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const clickedButton = e.target;
+                    const selectedSkill = clickedButton.dataset.skill;
+
+                    if (selectedSkill === "All") {
+                        document.querySelectorAll('.skill-btn').forEach(btn => btn.classList.remove('!bg-green-500'));
+                        clickedButton.classList.add('!bg-green-500');
+                    } else {
+                        document.querySelector('.skill-btn[data-skill="All"]').classList.remove('!bg-green-500');
+                        clickedButton.classList.toggle('!bg-green-500');
+                    }
+                });
+            });
+        }
+
+        function initializeGame() {
+            gameContainer.style.backgroundImage = `url(${themes[gameState.selectedTheme].bg})`;
+            showScreen(gameContainer);
+            setupCanvas();
+            updateProgressDisplay();
+            getNewProblem();
+        }
+        
+        function createNumpad() { ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'].forEach(val => { const btn = document.createElement('button'); btn.textContent = val; btn.className = 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-lg text-xl'; btn.addEventListener('click', () => handleNumpadInput(val)); numpad.appendChild(btn); }); }
+        function handleNumpadInput(value) { if (value === '⌫') answerInput.value = answerInput.value.slice(0, -1); else answerInput.value += value; }
+        
+        // --- Gemini API Interaction ---
+        async function getNewProblem(retryCount = 0) {
+            if (retryCount > 5) { 
+                problemText.textContent = "Having trouble finding a unique problem. Try changing skills or refreshing."; 
+                return; 
+            }
+            gameState.isFetching = true; 
+            gameState.wrongAnswerCount = 0;
+            setPencilState('thinking'); 
+            loader.classList.remove('hidden'); 
+            problemText.classList.add('hidden');
+            
+            const prompt = createPrompt();
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
+            
+            try {
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0) {
+                    const content = result.candidates[0].content.parts[0].text;
+                    const parsedContent = JSON.parse(content);
+                    if (askedProblems.has(parsedContent.problem)) { 
+                        getNewProblem(retryCount + 1); 
+                        return; 
+                    }
+                    askedProblems.add(parsedContent.problem);
+                    gameState.currentProblem = parsedContent;
+                } else { throw new Error("Invalid response structure from API."); }
+            } catch (error) {
+                console.error("Error fetching problem:", error); 
+                gameState.currentProblem = { problem: "Oops! Percy is thinking extra hard. Please refresh.", hint: "Try refreshing." };
+            } finally {
+                problemText.textContent = gameState.currentProblem.problem;
+                loader.classList.add('hidden'); 
+                problemText.classList.remove('hidden'); 
+                gameState.isFetching = false;
+                setPencilState('idle');
+                [submitButton, hintButton, skipButton, answerInput].forEach(el => { el.disabled = false; el.classList.remove('opacity-50', 'cursor-not-allowed'); });
+                answerInput.focus();
+            }
+        }
+        
+        function createPrompt() {
+            const place = themes[gameState.selectedTheme].locations[Math.floor(Math.random() * themes[gameState.selectedTheme].locations.length)];
+            let topic;
+            if (gameState.selectedSkills.includes("All")) {
+                topic = `any of these skills: ${skillsByGrade[gameState.selectedGrade].join(', ')}`;
+            } else {
+                topic = `a problem focusing on ONLY ONE of these skills: ${gameState.selectedSkills.join(' or ')}`;
+            }
+            let problemTypeInstruction;
+            switch(gameState.selectedProblemType) {
+                case 'word_problem': 
+                    problemTypeInstruction = `You MUST create a math word problem about ${place} in ${themes[gameState.selectedTheme].name}. It MUST NOT be a simple equation.`; 
+                    break;
+                case 'equation': 
+                    problemTypeInstruction = `You MUST create a math equation. It MUST NOT be a word problem.`; 
+                    break;
+                case 'both': 
+                default:
+                    problemTypeInstruction = Math.random() < 0.25 
+                        ? `You MUST create a math word problem about ${place} in ${themes[gameState.selectedTheme].name}. It MUST NOT be a simple equation.`
+                        : `You MUST create a math equation. It MUST NOT be a word problem.`; 
+                    break;
+            }
+            const basePrompt = `Create a unique math problem for a ${gameState.selectedGrade}th grader. The problem must focus on ${topic}. ${problemTypeInstruction} Respond with a JSON object containing four keys: "problem", "answer" (numerical), "hint" (a simple clue), and "explanation" (a simple, step-by-step explanation for the answer).`;
+            return basePrompt;
+        }
+
+        // --- Game Logic ---
+        function setPencilState(state) {
+            pencil.className = 'pencil'; 
+            pencilFace.className = 'pencil-face';
+            if (state === 'idle') return;
+            pencil.classList.add(state);
+            if (state === 'cheering') {
+                pencilFace.classList.add('happy');
+            } else if (state === 'concerned') {
+                pencilFace.classList.add('sad');
+            }
+        }
+        function updateProgressDisplay() {
+            levelDisplay.textContent = gameState.currentLevel; modalLevelDisplay.textContent = gameState.currentLevel;
+            const progressPercent = (gameState.correctAnswersInARow / CORRECT_TO_LEVEL_UP) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+            streakDisplay.textContent = gameState.streak > 1 ? `🔥 ${gameState.streak} Streak!` : '';
+            if (gameState.isLevelLocked) {
+                levelLockBtn.textContent = "Resume Auto-Leveling"; levelLockBtn.classList.replace('bg-blue-500', 'bg-purple-500');
+            } else {
+                levelLockBtn.textContent = "Stay on this Level"; levelLockBtn.classList.replace('bg-purple-500', 'bg-blue-500');
+            }
+        }
+        function showHint(isAuto = false) { if (gameState.currentProblem.hint) { hintBox.textContent = `Hint: ${gameState.currentProblem.hint}`; hintBox.classList.remove('hidden'); if (!isAuto) { hintButton.disabled = true; hintButton.classList.add('opacity-50', 'cursor-not-allowed'); } } }
+        function handleSubmit() {
+            if (gameState.isFetching) return;
+            const userAnswer = parseFloat(answerInput.value);
+            if (isNaN(userAnswer)) { feedbackMessage.textContent = "Please enter a number!"; return; }
+            if (userAnswer === gameState.currentProblem.answer) {
+                if (!gameState.isLevelLocked) gameState.correctAnswersInARow++;
+                gameState.streak++;
+                feedbackMessage.textContent = `${encouragement[Math.floor(Math.random() * encouragement.length)]} 🎉`;
+                setPencilState('cheering'); triggerFireworks();
+                if (!gameState.isLevelLocked && gameState.correctAnswersInARow >= CORRECT_TO_LEVEL_UP) { gameState.currentLevel++; gameState.correctAnswersInARow = 0; feedbackMessage.textContent = "Level Up! ✨"; }
+                updateProgressDisplay(); saveState();
+                [submitButton, hintButton, skipButton, answerInput].forEach(el => { el.disabled = true; el.classList.add('opacity-50', 'cursor-not-allowed'); });
+                answerInput.value = '';
+                setTimeout(() => getNewProblem(), 500);
+            } else {
+                gameState.wrongAnswerCount++; gameState.correctAnswersInARow = 0; gameState.streak = 0;
+                if (gameState.currentLevel > 1 && !gameState.isLevelLocked) gameState.currentLevel--;
+                gameState.wrongProblems.unshift(gameState.currentProblem);
+                if(gameState.wrongProblems.length > 5) gameState.wrongProblems.pop();
+                updateProgressDisplay(); saveState(); setPencilState('concerned'); triggerRain();
+                answerInput.classList.add('animate-shake');
+                setTimeout(() => { answerInput.classList.remove('animate-shake'); answerInput.value = ''; }, 500);
+                if (gameState.wrongAnswerCount === 1) {
+                    feedbackMessage.textContent = "Not quite. Here's a hint!"; showHint(true);
+                } else {
+                    feedbackMessage.textContent = `The correct answer was ${gameState.currentProblem.answer}.`;
+                    hintBox.textContent = `Explanation: ${gameState.currentProblem.explanation}`; hintBox.classList.remove('hidden');
+                    [submitButton, hintButton, answerInput, skipButton].forEach(el => { el.disabled = true; el.classList.add('opacity-50', 'cursor-not-allowed'); });
+                    setTimeout(getNewProblem, 6000);
+                }
+            }
+        }
+        
+        // --- Initial Setup & Event Listeners ---
+        window.addEventListener('load', () => {
+            if (!localStorage.getItem('mathAdventureHasPlayed')) {
+                showScreen(introContainer);
+                localStorage.setItem('mathAdventureHasPlayed', 'true');
+                setTimeout(() => {
+                    if (loadState()) { continueGameBtn.classList.remove('hidden'); }
+                    showScreen(mainMenuContainer);
+                }, 3000);
+            } else {
+                if (loadState()) { continueGameBtn.classList.remove('hidden'); }
+                showScreen(mainMenuContainer);
+            }
+        });
+        startNewGameBtn.addEventListener('click', () => { resetState(); showScreen(gradeSelectionContainer); });
+        continueGameBtn.addEventListener('click', () => initializeGame());
+        gradeButtons.forEach(button => button.addEventListener('click', () => { gameState.selectedGrade = parseInt(button.dataset.grade, 10); populateSkills(); showScreen(skillSelectionContainer); }));
+        startSkillGameBtn.addEventListener('click', () => { const selected = document.querySelectorAll('.skill-btn.\\!bg-green-500'); if(selected.length === 0) return; gameState.selectedSkills = Array.from(selected).map(s => s.dataset.skill); showScreen(themeSelectionContainer); });
+        themeButtons.forEach(button => button.addEventListener('click', () => { gameState.selectedTheme = button.dataset.theme; showScreen(problemTypeContainer); }));
+        problemTypeButtons.forEach(button => button.addEventListener('click', () => { gameState.selectedProblemType = button.dataset.type; initializeGame(); }));
+        submitButton.addEventListener('click', handleSubmit);
+        hintButton.addEventListener('click', () => showHint(false));
+        skipButton.addEventListener('click', () => skipModal.classList.remove('hidden'));
+        skipYesBtn.addEventListener('click', () => { skipModal.classList.add('hidden'); gameState.correctAnswersInARow = 0; gameState.streak = 0; updateProgressDisplay(); getNewProblem(); });
+        skipNoBtn.addEventListener('click', () => skipModal.classList.add('hidden'));
+        levelControlBtn.addEventListener('click', () => { tempLevelChange = gameState.currentLevel; modalLevelDisplay.textContent = gameState.currentLevel; levelModal.classList.remove('hidden'); });
+        levelCloseBtn.addEventListener('click', () => { levelModal.classList.add('hidden'); levelChangeConfirm.classList.add('hidden'); });
+        levelDownBtn.addEventListener('click', () => { if (parseInt(modalLevelDisplay.textContent) > 1) { modalLevelDisplay.textContent--; if (parseInt(modalLevelDisplay.textContent) !== gameState.currentLevel) levelChangeConfirm.classList.remove('hidden'); else levelChangeConfirm.classList.add('hidden'); } });
+        levelUpBtn.addEventListener('click', () => { modalLevelDisplay.textContent++; if (parseInt(modalLevelDisplay.textContent) !== gameState.currentLevel) levelChangeConfirm.classList.remove('hidden'); else levelChangeConfirm.classList.add('hidden'); });
+        levelConfirmYes.addEventListener('click', () => { gameState.currentLevel = parseInt(modalLevelDisplay.textContent); gameState.correctAnswersInARow = 0; gameState.streak = 0; updateProgressDisplay(); getNewProblem(); levelModal.classList.add('hidden'); levelChangeConfirm.classList.add('hidden'); });
+        levelConfirmNo.addEventListener('click', () => { modalLevelDisplay.textContent = gameState.currentLevel; levelChangeConfirm.classList.add('hidden'); });
+        levelLockBtn.addEventListener('click', () => { gameState.isLevelLocked = !gameState.isLevelLocked; updateProgressDisplay(); });
+        reviewBtn.addEventListener('click', () => { reviewList.innerHTML = ''; if(gameState.wrongProblems.length === 0) reviewList.innerHTML = '<p>No problems to review yet. Keep practicing!</p>'; else gameState.wrongProblems.forEach(p => { reviewList.innerHTML += `<div class="border p-2 rounded"><strong>Problem:</strong> ${p.problem}<br><strong>Answer:</strong> ${p.answer}<br><strong>Explanation:</strong> ${p.explanation}</div>`; }); reviewModal.classList.remove('hidden'); });
+        reviewCloseBtn.addEventListener('click', () => reviewModal.classList.add('hidden'));
+        mainMenuBtn.addEventListener('click', () => { saveState(); showScreen(mainMenuContainer); continueGameBtn.classList.remove('hidden'); });
+        answerInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') handleSubmit(); });
+        window.addEventListener('resize', setupCanvas);
+        createNumpad();
+        const style = document.createElement('style'); style.innerHTML = `@keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } } .animate-shake { animation: shake 0.5s ease-in-out; } .grade-btn { background-color: #38bdf8; color: white; font-weight: 600; padding: 1rem; border-radius: 0.75rem; transition: all 0.2s ease-in-out; } .grade-btn:hover { background-color: #0ea5e9; transform: scale(1.05); }`; document.head.appendChild(style);
+    </script>
+</body>
+</html>
